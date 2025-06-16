@@ -22,14 +22,13 @@ export default function AddProdukPage() {
       const response = await axios.post(`http://localhost:3001/api/produk`, {
         nama_value: nama,
         deskripsi_value: deskripsi,
-        harga_value: Number(harga),       // pastikan angka
-        stok_value: Number(stok),         // pastikan angka
-        petaniId_value: Number(petaniId)  // pastikan angka
+        harga_value: Number(harga),       // konversi ke number
+        stok_value: Number(stok),         // konversi ke number
+        petaniId_value: Number(petaniId), // konversi ke number
       });
 
       if (response.data?.meta_data?.error === 0) {
         setMessage("Produk berhasil ditambahkan!");
-        // reset form setelah sukses
         setNama("");
         setDeskripsi("");
         setHarga("");

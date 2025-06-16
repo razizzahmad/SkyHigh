@@ -1,96 +1,144 @@
-import { metadata } from "@/app/layout";
 import { PrismaClient } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
-import { genSaltSync, hashSync } from "bcrypt-ts";
 
+const prisma = new PrismaClient();
 
-//buat variabel prisma
-const prisma = new PrismaClient
-
-//buat fungsi untuk service "GET"
+// =======================
+// [GET] - Ambil semua data produk
+// =======================
 export const GET = async () => {
-    //prosess "GET" ///////(tampil data) tb_user
-    const data = await prisma.produk.findMany({})
+  try {
+    const produkList = await prisma.produk.findMany({
+      include: { petani: true }, // jika ingin menampilkan relasi petani
+    });
 
-    // Jika tidak ditemukan
-    if (data.length == 0) {
-        return NextResponse.json({
-            meta_data: {
-                error: 1,
-                message: "Data User Tidak Ditemukan",
-                status: 404
-            },
-        }, {
-                status: 404
-        })
+    return NextResponse.json(
+      {
+        meta_data: {
+          error: 0,
+          message: null,
+          status: 200,
+        },
+        data_produk: produkList,
+      },
+      { status: 200 }
+    );
+  } catch {
+    return NextResponse.json(
+      {
+        meta_data: {
+          error: 1,
+          message: "Terjadi kesalahan server saat mengambil data produk",
+          status: 500,
+        },
+      },
+      { status: 500 }
+    );
+  }
+};
+
+// =======================
+// [POST] - Tambah data produk
+// =======================
+export const POST = async (request: NextRequest) => {
+  try {
+    const {
+      nama_value,
+      deskripsi_value,
+      harga_value,
+      stok_value,
+      petaniId_value,
+    } = await request.json();
+
+    // Validasi input
+    if (
+      !nama_value ||
+      !deskripsi_value ||
+      harga_value === undefined ||
+      stok_value === undefined ||
+      petaniId_value === undefined
+    ) {
+      return NextResponse.json(
+        {
+          meta_data: {
+            error: 1,
+            message: "Semua field harus diisi",
+            status: 400,
+          },
+        },
+        { status: 400 }
+      );
     }
 
-    //tampilkan hasil respon
-    return NextResponse.json({
-        meta_data: {
-            error: 0,
-            message: null,
-            status: 200
+    const hargaNum = Number(harga_value);
+    const stokNum = Number(stok_value);
+    const petaniIdNum = Number(petaniId_value);
+
+    if (isNaN(hargaNum) || isNaN(stokNum) || isNaN(petaniIdNum)) {
+      return NextResponse.json(
+        {
+          meta_data: {
+            error: 1,
+            message: "Harga, stok, dan petaniId harus berupa angka yang valid",
+            status: 400,
+          },
         },
-        data_user: data
-    }, {
-        status: 200
-    })
-}
-
-//buat service "POST" tb_user
-export const POST = async (request:NextRequest) => {
-    //buat variabel object untuk request
-    const {nama_value, deskripsi_value, harga_value, stok_value, petaniId_value} = await request.json()
-
-    //cek apakah username sudah pernah dibuat atau belum
-    //hasil nya ada dua yaitu ketemu dan tidak jika tidak maka eror
-    const checkUSername = await prisma.produk.findMany({
-        where:{
-            nama: nama_value,    
-            deskripsi: deskripsi_value,
-                harga: harga_value,
-                stok: stok_value,
-                petaniId: petaniId_value
-        }
-    })
-
-    //jika username ditemukan
-    if(checkUSername.length >= 1) {
-        return NextResponse.json({
-            meta_data: {
-                error: 1,
-                message: "Data Username Gagal Disimpan! Username Sudah Terdaftar",
-                status: 404
-            },
-        }, {
-                status: 404
-        })
+        { status: 400 }
+      );
     }
 
+    // Cek duplikat berdasarkan nama dan petani
+    const existingProduk = await prisma.produk.findFirst({
+      where: {
+        nama: nama_value,
+        petaniId: petaniIdNum,
+      },
+    });
 
-    const deskripsi_salt = genSaltSync(10);
-        const deskripsi_result = hashSync(deskripsi_value,deskripsi_salt);
-
-    //proses POST data
-    const save = await prisma.produk.create({
-        data: {
-            nama: nama_value,
-            deskripsi: deskripsi_result,
-            harga: harga_value,
-            stok: stok_value,
-            petaniId: petaniId_value
+    if (existingProduk) {
+      return NextResponse.json(
+        {
+          meta_data: {
+            error: 1,
+            message: "Produk dengan nama dan petani yang sama sudah terdaftar",
+            status: 409,
+          },
         },
-    })
+        { status: 409 }
+      );
+    }
 
-    //tampilkan hasil respon
-    return NextResponse.json({
+    const saveProduk = await prisma.produk.create({
+      data: {
+        nama: nama_value,
+        deskripsi: deskripsi_value,
+        harga: hargaNum,
+        stok: stokNum,
+        petaniId: petaniIdNum,
+      },
+    });
+
+    return NextResponse.json(
+      {
         meta_data: {
-            error: 0,
-            message: "data user berhasil disimpan",
-            status: 201
+          error: 0,
+          message: "Data produk berhasil disimpan",
+          status: 201,
         },
-    }, {
-        status: 201
-    })
-}
+        data: saveProduk,
+      },
+      { status: 201 }
+    );
+  } catch {
+    return NextResponse.json(
+      {
+        meta_data: {
+          error: 1,
+          message: "Terjadi kesalahan server saat menyimpan produk",
+          status: 500,
+        },
+      },
+      { status: 500 }
+    );
+  }
+};

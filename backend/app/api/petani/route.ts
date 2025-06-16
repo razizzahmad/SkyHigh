@@ -38,6 +38,7 @@ export const POST = async (request: NextRequest) => {
 
     const checkUSername = await prisma.petani.findMany({
         where: {
+            nama : nama_value,
             kontak: kontak_value,
             alamat: alamat_value,
             produk: produk_value,
@@ -52,7 +53,7 @@ export const POST = async (request: NextRequest) => {
                 status: 404
             },
         }, {
-            status: 404
+            status: 200
         });
     }
 
@@ -69,7 +70,7 @@ export const POST = async (request: NextRequest) => {
     return NextResponse.json({
         meta_data: {
             error: 0,
-            message: "Data user berhasil disimpan",
+            message: "Data Petani berhasil disimpan",
             status: 201
         },
     }, {
